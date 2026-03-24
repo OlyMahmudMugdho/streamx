@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: upload-service
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+  codec:
+    max-in-memory-size: 500MB
+
+  cloud:
+    azure:
+      storage:
+        blob:
+          account-name: ${AZURE_STORAGE_ACCOUNT_NAME}
+          account-key: ${AZURE_STORAGE_ACCOUNT_KEY}
+          endpoint: ${AZURE_STORAGE_ACCOUNT_ENDPOINT}
