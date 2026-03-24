@@ -23,7 +23,7 @@ public class UploadController {
   @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public Mono<String> uploadFile(@RequestPart("file") FilePart filePart) {
 
-    // 1. Validation: Only accept video MIME types
+    // Validation: Only accept video MIME types
     String contentType = filePart.headers().getContentType() != null
         ? filePart.headers().getContentType().toString()
         : "";
@@ -32,20 +32,23 @@ public class UploadController {
       return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only video files are allowed!"));
     }
 
-    // 2. Map the Flux<DataBuffer> to Flux<ByteBuffer> for the Azure SDK
-    // We use .map(DataBuffer::asByteBuffer) to bridge Spring to Azure
+    // Reference the specific blob client
+    var blobAsyncClient = blobServiceAsyncClient
+        .getBlobContainerAsyncClient(CONTAINER)
+        .getBlobAsyncClient(filePart.filename());
+
+    // Map the Flux<DataBuffer> to Flux<ByteBuffer>
     var byteBufferFlux = filePart.content()
         .map(DataBuffer::asByteBuffer);
 
-    // 3. Configure chunked upload settings
+    // Configure chunked upload settings
     ParallelTransferOptions options = new ParallelTransferOptions()
-        .setBlockSizeLong(4L * 1024 * 1024) // 4MB chunks
-        .setMaxConcurrency(5); // Balanced concurrency for stability
+        .setBlockSizeLong(4L * 1024 * 1024)
+        .setMaxConcurrency(5);
 
-    // 4. Perform the upload
-    return blobServiceAsyncClient.getBlobContainerAsyncClient(CONTAINER)
-        .getBlobAsyncClient(filePart.filename())
-        .upload(byteBufferFlux, options, true)
-        .thenReturn("Successfully uploaded video: " + filePart.filename());
+    // Perform the upload and return the URI
+    return blobAsyncClient.upload(byteBufferFlux, options, true)
+        .thenReturn(blobAsyncClient.getBlobUrl()); // Returns the full URL to the file
   }
+
 }
