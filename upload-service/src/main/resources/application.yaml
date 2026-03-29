@@ -15,3 +15,9 @@ spring:
           account-name: ${AZURE_STORAGE_ACCOUNT_NAME}
           account-key: ${AZURE_STORAGE_ACCOUNT_KEY}
           endpoint: ${AZURE_STORAGE_ACCOUNT_ENDPOINT}
+  mongodb:
+    host: localhost
+    password: root
+    username: root
+    database: upload-service
+    authentication-database: admin
