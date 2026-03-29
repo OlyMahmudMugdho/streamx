@@ -2,6 +2,7 @@ package com.mahmud.upload_service.models;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -22,5 +23,6 @@ public class VideoMetadata {
     private String contentType;
     private long fileSize;
     private long duration;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime uploadDate;
 }

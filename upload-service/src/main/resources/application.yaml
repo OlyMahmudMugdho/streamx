@@ -21,3 +21,8 @@ spring:
     username: root
     database: upload-service
     authentication-database: admin
+
+jackson:
+  serialization:
+    write-dates-as-timestamps: false
+  date-format: "yyyy-MM-dd'T'HH:mm:ss"

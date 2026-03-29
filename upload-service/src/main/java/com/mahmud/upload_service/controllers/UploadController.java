@@ -2,6 +2,7 @@ package com.mahmud.upload_service.controllers;
 
 import com.azure.storage.blob.BlobServiceAsyncClient;
 import com.azure.storage.blob.models.ParallelTransferOptions;
+import com.mahmud.upload_service.dto.UploadResponse;
 import com.mahmud.upload_service.services.VideoMetadataService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.buffer.DataBufferUtils;
@@ -28,7 +29,7 @@ public class UploadController {
   private static final String CONTAINER = "default";
 
   @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public Mono<String> uploadFile(@RequestPart("file") FilePart filePart) {
+  public Mono<UploadResponse> uploadFile(@RequestPart("file") FilePart filePart) {
 
     String contentType = filePart.headers().getContentType() != null
         ? filePart.headers().getContentType().toString()
@@ -38,15 +39,15 @@ public class UploadController {
       return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only video files are allowed!"));
     }
 
-    long fileSize = filePart.headers().getContentLength();
-
     var blobAsyncClient = blobServiceAsyncClient
         .getBlobContainerAsyncClient(CONTAINER)
         .getBlobAsyncClient(filePart.filename());
 
+    long[] actualSize = {0};
     Flux<ByteBuffer> byteBufferFlux = filePart.content()
         .map(dataBuffer -> {
           byte[] bytes = new byte[dataBuffer.readableByteCount()];
+          actualSize[0] += bytes.length;
           dataBuffer.read(bytes);
           DataBufferUtils.release(dataBuffer);
           return ByteBuffer.wrap(bytes);
@@ -59,7 +60,13 @@ public class UploadController {
     String blobUrl = blobAsyncClient.getBlobUrl();
 
     return blobAsyncClient.upload(byteBufferFlux, options, true)
-        .flatMap(ignored -> videoMetadataService.saveMetadata(filePart.filename(), blobUrl, contentType, fileSize))
-        .map(metadata -> metadata.getId() != null ? metadata.getId() : blobUrl);
+        .flatMap(ignored -> videoMetadataService.saveMetadata(filePart.filename(), blobUrl, contentType, actualSize[0]))
+        .map(metadata -> new UploadResponse(
+            metadata.getId(),
+            metadata.getFilename(),
+            metadata.getBlobUrl(),
+            metadata.getContentType(),
+            metadata.getFileSize(),
+            metadata.getUploadDate()));
   }
 }

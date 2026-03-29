@@ -17,7 +17,6 @@ HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 
 if [ "$HTTP_CODE" -eq 200 ] || [ "$HTTP_CODE" -eq 201 ]; then
-    echo "Upload successful"
     echo "$BODY"
 else
     echo "Upload failed with status code: $HTTP_CODE"
