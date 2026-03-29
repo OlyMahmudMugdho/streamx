@@ -3,13 +3,16 @@ package com.mahmud.upload_service.controllers;
 import com.azure.storage.blob.BlobServiceAsyncClient;
 import com.azure.storage.blob.models.ParallelTransferOptions;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.nio.ByteBuffer;
 
 @RestController
 @RequestMapping("blob")
@@ -37,18 +40,26 @@ public class UploadController {
         .getBlobContainerAsyncClient(CONTAINER)
         .getBlobAsyncClient(filePart.filename());
 
-    // Map the Flux<DataBuffer> to Flux<ByteBuffer>
-    var byteBufferFlux = filePart.content()
-        .map(DataBuffer::asByteBuffer);
+    Flux<ByteBuffer> byteBufferFlux = filePart.content()
+        .map(dataBuffer -> {
+          // Create a byte array and read the buffer content into it
+          byte[] bytes = new byte[dataBuffer.readableByteCount()];
+          dataBuffer.read(bytes);
+
+          // Release the original DataBuffer (Crucial for Netty)
+          DataBufferUtils.release(dataBuffer);
+
+          // Return a standard Java NIO ByteBuffer
+          return ByteBuffer.wrap(bytes);
+        });
 
     // Configure chunked upload settings
     ParallelTransferOptions options = new ParallelTransferOptions()
-        .setBlockSizeLong(4L * 1024 * 1024)
+        .setBlockSizeLong(4L * 1024 * 1024) // 4MB Chunks
         .setMaxConcurrency(5);
 
     // Perform the upload and return the URI
     return blobAsyncClient.upload(byteBufferFlux, options, true)
-        .thenReturn(blobAsyncClient.getBlobUrl()); // Returns the full URL to the file
+        .thenReturn(blobAsyncClient.getBlobUrl());
   }
-
 }
