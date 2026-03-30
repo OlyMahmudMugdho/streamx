@@ -4,6 +4,7 @@ import com.azure.storage.blob.BlobServiceAsyncClient;
 import com.azure.storage.blob.models.ParallelTransferOptions;
 import com.mahmud.upload_service.dto.UploadResponse;
 import com.mahmud.upload_service.services.VideoMetadataService;
+import com.mahmud.upload_service.services.VideoTranscodeEventPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,9 @@ public class UploadController {
 
   @Autowired
   private VideoMetadataService videoMetadataService;
+
+  @Autowired
+  private VideoTranscodeEventPublisher videoTranscodeEventPublisher;
 
   private static final String CONTAINER = "default";
 
@@ -64,6 +68,8 @@ public class UploadController {
 
     return blobAsyncClient.upload(byteBufferFlux, options, true)
         .flatMap(ignored -> videoMetadataService.saveMetadata(storedFilename, originalFilename, blobUrl, contentType, actualSize[0]))
+        .flatMap(savedMetadata -> videoTranscodeEventPublisher.publish(savedMetadata)
+            .thenReturn(savedMetadata))
         .map(metadata -> new UploadResponse(
             metadata.getId(),
             metadata.getFilename(),
