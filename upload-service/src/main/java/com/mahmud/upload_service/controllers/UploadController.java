@@ -15,6 +15,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.nio.ByteBuffer;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("blob")
@@ -30,6 +31,8 @@ public class UploadController {
 
   @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public Mono<UploadResponse> uploadFile(@RequestPart("file") FilePart filePart) {
+    String originalFilename = filePart.filename();
+    String storedFilename = buildStoredFilename(originalFilename);
 
     String contentType = filePart.headers().getContentType() != null
         ? filePart.headers().getContentType().toString()
@@ -41,7 +44,7 @@ public class UploadController {
 
     var blobAsyncClient = blobServiceAsyncClient
         .getBlobContainerAsyncClient(CONTAINER)
-        .getBlobAsyncClient(filePart.filename());
+        .getBlobAsyncClient(storedFilename);
 
     long[] actualSize = {0};
     Flux<ByteBuffer> byteBufferFlux = filePart.content()
@@ -60,7 +63,7 @@ public class UploadController {
     String blobUrl = blobAsyncClient.getBlobUrl();
 
     return blobAsyncClient.upload(byteBufferFlux, options, true)
-        .flatMap(ignored -> videoMetadataService.saveMetadata(filePart.filename(), blobUrl, contentType, actualSize[0]))
+        .flatMap(ignored -> videoMetadataService.saveMetadata(storedFilename, originalFilename, blobUrl, contentType, actualSize[0]))
         .map(metadata -> new UploadResponse(
             metadata.getId(),
             metadata.getFilename(),
@@ -68,5 +71,11 @@ public class UploadController {
             metadata.getContentType(),
             metadata.getFileSize(),
             metadata.getUploadDate()));
+  }
+
+  private String buildStoredFilename(String originalFilename) {
+    int dotIndex = originalFilename.lastIndexOf('.');
+    String extension = (dotIndex >= 0) ? originalFilename.substring(dotIndex) : "";
+    return UUID.randomUUID() + extension;
   }
 }

@@ -15,8 +15,8 @@ public class VideoMetadataService {
   @Autowired
   private VideoMetadataRepository repository;
 
-  public Mono<VideoMetadata> saveMetadata(String filename, String blobUrl, String contentType, long fileSize) {
-    String title = generateTitle(filename);
+  public Mono<VideoMetadata> saveMetadata(String filename, String originalFilename, String blobUrl, String contentType, long fileSize) {
+    String title = generateTitle(originalFilename);
     LocalDateTime uploadDate = LocalDateTime.now();
 
     VideoMetadata metadata = new VideoMetadata();
@@ -34,6 +34,9 @@ public class VideoMetadataService {
   private String generateTitle(String filename) {
     int dotIndex = filename.lastIndexOf('.');
     String nameWithoutExt = (dotIndex > 0) ? filename.substring(0, dotIndex) : filename;
+    if (nameWithoutExt.isEmpty()) {
+      return "Video";
+    }
     return nameWithoutExt.substring(0, 1).toUpperCase() + nameWithoutExt.substring(1);
   }
 }
